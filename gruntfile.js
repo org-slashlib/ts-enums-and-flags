@@ -3,10 +3,11 @@
  */
 "use strict";
 const path      = require( "path" );
-const yatsc       = require( "rollup-plugin-yatsc" );
+const yatsc     = require( "rollup-plugin-yatsc" );
 const terser    = require( "rollup-plugin-terser" ).terser;
 
 const BUILD     = "build";
+const BUNDLES   = "bundles";
 const CONFIG    = "config";
 const DIST      = "dist";
 const DOC       = "doc";
@@ -35,7 +36,7 @@ module.exports = function( grunt ) {
     }, // end of cleanempty
 
     copy: {
-      prerequisites_lib: {
+      build: {
         files: [{
           expand:   true,
           src:      [
@@ -52,6 +53,8 @@ module.exports = function( grunt ) {
                       `!./*.zip`,       // do not copy projectroot/*.zip
                       `!./*.7z`,        // do not copy projectroot/*.7z
                       `!./*.tgz`,       // do not copy projectroot/*.tgz
+                      `!./*.conf.*`,    // do not copy configuration files (karma...)
+                      `!./*.conf`,      // do not copy configuration files
                       `!./config/**/*`, // do not copy configuration tree (if there is one)
                       `!./node-*/**/*`, // do not copy projectroot/node binaries (junction on windows)
                       `!./node_modules` // do not copy projectroot/node_modules
@@ -60,10 +63,26 @@ module.exports = function( grunt ) {
         },{
           expand:   true,
           cwd:      SRC,                // copy sources to build directory
-          src:      [ "**/*" ],
+          src:      [
+                      "**/*",
+                      "!test/*"         // don't copy test files
+                    ],
           dest:     BUILD
         }]
-      } // end of copy:prerequisites_lib
+      }, // end of copy:build
+      dist: {
+        files: [{
+          expand:   true,
+          cwd:      BUILD,              // copy sources to build directory
+          src:      [
+                      `${DOC}/**/*`,    // copy docs to build directory
+                      `./LICENSE`,      // copy licence
+                      `./*.md`,         // copy readme etc.
+                      `!./${LIB}/*`       // do not copy sources
+                    ],
+          dest:     `${ DIST }/${ pkgname }`
+        }]
+      }  // end of copy:dist
     }, // end of copy
 
     jsonfile: {
@@ -77,19 +96,17 @@ module.exports = function( grunt ) {
               target                  : "xxx",
               module                  : "xxx",
               moduleResolution        : "node",
-              declaration             : true,
-              // sourceMap              : true, // cannot be used together with inlineSourceMap
               inlineSourceMap         : true,
               inlineSources           : true,
               emitDecoratorMetadata   : true,
               experimentalDecorators  : true,
               importHelpers           : true,
               removeComments          : true,
-              typeRoots               : [ "node_modules/@types", "lib/@types" ],
+              typeRoots               : [ "node_modules/@types", `${LIB}/@types` ],
               lib                     : [ "es7" ]
             },
-            include : [ "build/**/*.ts"   ],
-            exclude : [ "build/test/**/*" ]
+            include : [ "**/*.ts"   ],
+            exclude : [ "test/**/*" ]
           }
         }
       },
@@ -101,7 +118,7 @@ module.exports = function( grunt ) {
             outDir        : `../${ DIST }/${ pkgname }`,
             target        : "es6",
             module        : "commonjs",
-            declaration   : true,
+            declaration   : false,
             noImplicitAny : false,
             noLib         : false,
             allowJs       : true
@@ -112,10 +129,15 @@ module.exports = function( grunt ) {
         template: "pkgjson",
         dest:     `./${ DIST }/${ pkgname }/package.json`,
         merge: {
-          main            : `bundles/${ pkglobl }.umd.js`,
-          typings         : `${ pkglobl }.d.ts`,
-          metadata        : `${ pkglobl }.metadata.json`,
+          cjs             : `${BUNDLES}/${ pkglobl }.commonjs.js`,
+          esm2016         : `${BUNDLES}/${ pkglobl }.esm2016.js`,
+          fcjs            : `${BUNDLES}/${ pkglobl }.commonjs.min.js`,
+          fesm2016        : `${BUNDLES}/${ pkglobl }.esm2016.min.js`,
+          module          : `${BUNDLES}/${ pkglobl }.esm2016.js`, // esm entry point
+          main            : `${LIB}/index.js`,                    // commonjs/nodejs entry point
+          scripts         : null,
           sideEffects     : true,
+          // type           : "module"                            // this is, by default, a commonjs module
           dependencies    : { "tslib": "^1.9.0" },
           devDependencies : null
         }
@@ -123,30 +145,70 @@ module.exports = function( grunt ) {
     }, // end of jsonfiles
 
     rollup: {
-      esm5: {
-        src   : `${ BUILD }/index.ts`,
-        dest  : `dist/${ pkgname }/esm5/${ pkglobl }.js`,
+      commonjs: {
+        src   : `${ BUILD }/${ LIB }/index.ts`,
+        dest  : `dist/${ pkgname }/${BUNDLES}/${ pkglobl }.commonjs.js`,
         options: {
           plugins   : [ yatsc( `${ BUILD }/tsconfig.json` )],
           name      : `${ pkglobl }`,
           format    : "commonjs",
           sourcemap : "inline"
         }
-      }
+      },
+      fcommonjs: {
+        src   : `${ BUILD }/${ LIB }/index.ts`,
+        dest  : `dist/${ pkgname }/${BUNDLES}/${ pkglobl }.commonjs.min.js`,
+        options: {
+          plugins   : [ yatsc( `${ BUILD }/tsconfig.json` ), terser()],
+          name      : `${ pkglobl }`,
+          format    : "commonjs",
+          sourcemap : "inline"
+        }
+      },
+      esm2016: { // esm formatted package compiled for ES2016 (ES7)
+        src   : `${ BUILD }/${ LIB }/index.ts`,
+        dest  : `dist/${ pkgname }/${BUNDLES}/${ pkglobl }.esm2016.js`,
+        options: {
+          plugins   : [ yatsc( `${ BUILD }/tsconfig.json` )],
+          name      : `${ pkglobl }`,
+          format    : "esm",
+          sourcemap : "inline"
+        }
+      },
+      fesm2016: { // minified esm formatted package compiled for ES2016 (ES7)
+        src   : `${ BUILD }/${ LIB }/index.ts`,
+        dest  : `dist/${ pkgname }/${BUNDLES}/${ pkglobl }.esm2016.min.js`,
+        options: {
+          plugins   : [ yatsc( `${ BUILD }/tsconfig.json` ), terser()],
+          name      : `${ pkglobl }`,
+          format    : "esm",
+          sourcemap : "inline"
+        }
+      },
     }, // end of rollup
 
+    ts: {
+      options: {
+        rootDir   : "build"
+      },
+      commonjs: {
+        tsconfig  : "build/tsconfig.json",
+        src:        [ "build/**/*.ts" ]
+      },
+    } // end of grunt-ts (typescript compiler)
   }); // end of grunt.initConfig
 
-  grunt.loadNpmTasks( "grunt-cleanempty"      );
-  grunt.loadNpmTasks( "grunt-contrib-clean"   );
-  grunt.loadNpmTasks( "grunt-contrib-copy"    );
-  grunt.loadNpmTasks( "grunt-jsonfile"        );
-  grunt.loadNpmTasks( "grunt-newer"           );
-  grunt.loadNpmTasks( "grunt-rollup"          );
+  grunt.loadNpmTasks( "grunt-cleanempty"    );
+  grunt.loadNpmTasks( "grunt-contrib-clean" );
+  grunt.loadNpmTasks( "grunt-contrib-copy"  );
+  grunt.loadNpmTasks( "grunt-jsonfile"      );
+  grunt.loadNpmTasks( "grunt-newer"         );
+  grunt.loadNpmTasks( "grunt-rollup"        );
+  grunt.loadNpmTasks( "grunt-ts"            );
 
   grunt.registerTask( "clean-default",   [ "clean:dist", "clean:build", "cleanempty:always" ]);
 
-  grunt.registerTask( "prepare-default", [ "newer:copy:prerequisites_lib", "cleanempty:always" ]);
+  grunt.registerTask( "prepare-default", [ "newer:copy:build", "newer:copy:dist", "cleanempty:always" ]);
 
-  grunt.registerTask( "default",         [ "clean-default", "prepare-default", "jsonfile", "rollup" ]);
+  grunt.registerTask( "default",         [ "clean-default", "prepare-default", "jsonfile", "ts", "rollup" ]);
 };
