@@ -115,13 +115,18 @@ module.exports = function( grunt ) {
         dest:     `${ BUILD }/tsconfig.json`,
         merge: {
           compilerOptions: {
-            outDir        : `../${ DIST }/${ pkgname }`,
-            target        : "es6",
-            module        : "commonjs",
-            declaration   : false,
-            noImplicitAny : false,
-            noLib         : false,
-            allowJs       : true
+            outDir            : `../${ DIST }/${ pkgname }`,
+            target            : "es2017",
+            module            : "commonjs",
+            moduleResolution  : null,
+            noImplicitAny     : false,
+            noLib             : false,
+            noUnusedLocals    : false,
+            removeComments    : false,
+            strict            : true,
+            suppressImplicitAnyIndexErrors  : true,
+            allowJs           : false,
+            declaration       : true
           }
         }
       },

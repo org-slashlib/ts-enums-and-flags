@@ -110,18 +110,18 @@ export function enumerate<S extends string, N extends number>( s : Array<S>, n :
        *
        *  Note: index may be misleading. it may be an index as well as any numeric literal.
        */
-      sub.byIndex = ( index ) => { return s[ n.indexOf( index )]; };
+      sub.byIndex = ( index: N ) => { return s[ n.indexOf( index )]; };
       /**
        *  Returns an enumerated index/value from an enumerated name
        *  (Transforms enum.string to enum.number)
        */
-      sub.indexOf = ( enumeration ) => { return n[ s.indexOf( enumeration )];};
+      sub.indexOf = ( enumeration: S ) => { return n[ s.indexOf( enumeration )];};
       /**
        *  Normalizes any given enumerated name and enumerated index/value
        *  to an enumerated value.
        *  (Transforms enum.number and enum.string to enum.number)
        */
-      sub.toIndex = ( value ) => {
+      sub.toIndex = ( value: N | S ) => {
         if (( typeof value ) === "number" ) {
              return value;
         }
@@ -135,7 +135,7 @@ export function enumerate<S extends string, N extends number>( s : Array<S>, n :
        *  to an enumerated name.
        *  (Transforms enum.number and enum.string to enum.string)
        */
-      sub.toKey = ( value ) => {
+      sub.toKey = ( value: N | S ) => {
         if (( typeof value ) === "number" ) {
              return sub.byIndex( value );
         }
@@ -162,26 +162,26 @@ export function flag<S extends string, N extends number>( s : Array<S>, n : Arra
          *  Return a value with ored flags
          *  or( ...flag : S | N ): N;
          */
-        sub.or = ( ...flags ) => {
+        sub.or = ( ...flags: Array<S|N> ) => {
           return flags.reduce(( result, flag ) => {
             if (( typeof flag ) === "string" ) {
                   return result | sub.toValue( flag );
             }
-            else return result | flag;
+            else return result | <N>flag;
           }, 0 );
         }
         /**
          *  Returns true, if flag is set in value
          *  test( value : S | N, flag S ): boolean;
          */
-        sub.test = ( value, flag ) => {
+        sub.test = ( value : S | N, flag: S ) => {
           if (( typeof value ) === "string" ) {
                 if ( value !== flag ) {
                      value = sub.toValue( value );
                 }
                 else return true;
           }
-          return value & sub.toValue( flag );
+          return <N>value & sub.toValue( flag );
         }
         /**
          *  Return all possible flag settings
@@ -191,12 +191,12 @@ export function flag<S extends string, N extends number>( s : Array<S>, n : Arra
          *  Return a flags value (2^n) from a flags name or value (2^n)
          *  toValue( key : S | N ): N;
          */
-        sub.toValue = ( value ) => {
+        sub.toValue = ( value : S | N ) => {
           if (( typeof value ) === "number" ) {
                return value;
           }
           else if (( typeof value ) === "string" ) {
-               let index = s.indexOf( value );
+               let index = s.indexOf( <S>value );
                    index = ( index == 0 ) ? 0 : (( index === ( s.length - 1 )) ? ( n.length - 1 ) : 1 << ( index - 1 ));
                return n[ index ];
           }
@@ -206,7 +206,7 @@ export function flag<S extends string, N extends number>( s : Array<S>, n : Arra
          *  Normalizes a value to its flag values
          *  toValues( value: S | N ): Array<N>;
          */
-        sub.toValues = ( value ) => {
+        sub.toValues = ( value : S | N ) => {
           let ret = Array<N>();
           if (( typeof value ) === "string" ) {
                 value = sub.toValue( value );
@@ -214,7 +214,7 @@ export function flag<S extends string, N extends number>( s : Array<S>, n : Arra
           let j    = 0;
           let curr = ( 1 << j++ );
           while ( curr <= value ) {
-            if ( value & curr ) {
+            if ( <N>value & curr ) {
                  ret.push( n[curr]);
             }
             curr = ( 1 << j++ );
@@ -225,7 +225,7 @@ export function flag<S extends string, N extends number>( s : Array<S>, n : Arra
          *  Normalizes a value to its flag keys
          *  toKeys( value: S | N ): Array<S>;
          */
-        sub.toKeys = ( value ) => {
+        sub.toKeys = ( value : S | N ) => {
           let ret = Array<S>();
           if (( typeof value ) === "string" ) {
                 value = sub.toValue( value );
@@ -233,7 +233,7 @@ export function flag<S extends string, N extends number>( s : Array<S>, n : Arra
           let j    = 0;
           let curr = ( 1 << j++ );
           while ( curr <= value ) {
-            if ( value & curr ) {
+            if ( <N>value & curr ) {
                  ret.push( s[j]);
             }
             curr = ( 1 << j++ );

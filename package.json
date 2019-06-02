@@ -1,6 +1,6 @@
 {
   "name": "@org.slashlib/ts-enums-and-flags",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "slashlib.org enumeration and flag generator for typescript",
   "author": "Dirk Brenckmann <db.developer@gmx.de>",
   "license": "all rights reserved",
